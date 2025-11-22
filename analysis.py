@@ -227,4 +227,4 @@ if __name__ == "__main__":
         print(results[['title', 'type', 'key_signature']].head())
         
     else:
-        print("❌ Failed to load data")
+        print(" Failed to load data")
