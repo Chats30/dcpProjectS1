@@ -16,10 +16,11 @@ from analysis import (
 
 from tabulate import tabulate
 import pandas as pd
+from database import connect_to_database
 
 
 def display_menu():
-    """Display the main menu options"""
+    """Display the main menu options."""
     print("\n" + "=" * 60)
     print("ABC TUNE DATABASE - MAIN MENU")
     print("=" * 60)
@@ -31,7 +32,10 @@ def display_menu():
     print("6. View tunes per book")
     print("7. View most common tune types")
     print("8. View most common keys")
-    print("9. Exit")
+    print("9. Edit a tune")
+    print("10. Delete a tune")
+    print("11. Export to PDF")
+    print("12. Exit")
     print("=" * 60)
 
 def display_dataframe(df: pd.DataFrame, max_rows: int = 10):
@@ -197,6 +201,133 @@ def handle_view_common_keys(df: pd.DataFrame):
     except ValueError:
         print(" Invalid input. Please enter a number.")
 
+def handle_edit_tune(df: pd.DataFrame):
+    """Handle editing a tune"""
+    print("\n" + "-" * 60)
+    print("EDIT TUNE")
+    print("-" * 60)
+
+    try:
+        tune_id = int(input("\nEnter tune ID to edit: "))
+
+        # GEt current tune info
+        conn = connect_to_database()
+        if not conn:
+            return
+        
+        from database import get_tune_by_id
+        tune = get_tune_by_id(conn, tune_id)
+
+        if not tune:
+            print(f"Tune with ID {tune_id} not found")
+            conn.close()
+            return
+        
+        # display current info
+        print(f"\nCurrent tune info:")
+        print(f"  Title: {tune['title']}")
+        print(f"  Type: {tune['type']}")
+        print(f"  Key: {tune['key_signature']}")
+        print(f"  Meter: {tune['meter']}")
+
+        # Get updates
+        print("\nEnter new values (press Enter to skip):")
+        updates = {}
+        
+        new_title = input(f"New title [{tune['title']}]: ").strip()
+        if new_title:
+            updates['title'] = new_title
+        
+        new_type = input(f"New type [{tune['type']}]: ").strip()
+        if new_type:
+            updates['type'] = new_type
+        
+        new_key = input(f"New key [{tune['key_signature']}]: ").strip()
+        if new_key:
+            updates['key_signature'] = new_key
+        
+        new_meter = input(f"New meter [{tune['meter']}]: ").strip()
+        if new_meter:
+            updates['meter'] = new_meter
+        
+        if updates:
+            from database import update_tune
+            if update_tune(conn, tune_id, updates):
+                print("Tune updated successfully!")
+            else:
+                print("Failed to update tune")
+        else:
+            print("No changes made")
+        
+        conn.close()
+        
+    except ValueError:
+        print("Invalid input. Please enter a number.")
+
+def handle_delete_tune(df: pd.DataFrame):
+    """Handle deleting a tune."""
+    print("\n" + "-" * 60)
+    print("DELETE TUNE")
+    print("-" * 60)
+    print("WARNING: This action cannot be undone!")
+    
+    try:
+        tune_id = int(input("\nEnter tune ID to delete: "))
+        
+        # Get tune info first
+        conn = connect_to_database()
+        if not conn:
+            return
+        
+        from database import get_tune_by_id, delete_tune
+        tune = get_tune_by_id(conn, tune_id)
+        
+        if not tune:
+            print(f"Tune with ID {tune_id} not found")
+            conn.close()
+            return
+        
+        # Confirm deletion
+        print(f"\nYou are about to delete:")
+        print(f"  ID: {tune['id']}")
+        print(f"  Title: {tune['title']}")
+        print(f"  Type: {tune['type']}")
+        
+        confirm = input("\nAre you sure? (yes/no): ").strip().lower()
+        
+        if confirm == 'yes':
+            if delete_tune(conn, tune_id):
+                print("Tune deleted successfully!")
+            else:
+                print("Failed to delete tune")
+        else:
+            print("Deletion cancelled")
+        
+        conn.close()
+        
+    except ValueError:
+        print("Invalid input. Please enter a number.")
+
+def handle_export_pdf(df: pd.DataFrame):
+    """Handle exporting to PDF."""
+    print("\n" + "-" * 60)
+    print("EXPORT TO PDF")
+    print("-" * 60)
+    
+    filename = input("\nEnter filename (default: tunes_export.pdf): ").strip()
+    if not filename:
+        filename = "tunes_export.pdf"
+    
+    if not filename.endswith('.pdf'):
+        filename += '.pdf'
+    
+    from analysis import export_to_pdf
+    
+    print(f"\nExporting {len(df)} tunes to {filename}...")
+    if export_to_pdf(df, filename):
+        print(f"Export complete! File saved: {filename}")
+    else:
+        print("Export failed")
 
 def main_loop():
     """Main application loop."""
@@ -217,7 +348,7 @@ def main_loop():
     # Main menu loop
     while True:
         display_menu()
-        choice = input("\nEnter your choice (1-9): ").strip()
+        choice = input("\nEnter your choice (1-12): ").strip()
         
         if choice == '1':
             handle_view_by_book(df)
@@ -236,11 +367,17 @@ def main_loop():
         elif choice == '8':
             handle_view_common_keys(df)
         elif choice == '9':
-            print("\n Thank you for using ABC Tune Database!")
+            handle_edit_tune(df)
+        elif choice == '10':
+            handle_delete_tune(df)
+        elif choice == '11':
+            handle_export_pdf(df)
+        elif choice == '12':
+            print("\n Thanks for using ABC Tune Database!")
             print("=" * 60)
             break
         else:
-            print("\n Invalid choice. Please enter a number between 1 and 9.")
+            print("\n Invalid choice. Please enter a number between 1 and 12.")
         
         # Pause before showing menu again
         input("\nPress Enter to continue...")

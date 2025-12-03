@@ -183,6 +183,76 @@ def get_summary_statistics(df: pd.DataFrame) -> dict:
         'most_common_key': df['key_signature'].mode()[0] if not df['key_signature'].mode().empty else 'N/A'
     }
     return stats
+
+def export_to_pdf(df: pd.DataFrame, filename: str = "tunes_export.pdf") -> bool:
+    """
+    Exporting dataframe to a pdf file
+
+    Args:
+    df: DataFrame to export
+    filename: Output PDF file
+
+    Returns:
+    true if successful fasle if not
+    """
+
+    try:
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import letter, A4
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.lib.units import inch
+
+        # CReate PDF
+        pdf = SimpleDocTemplate(filename, pagesize = A4)
+        elements = []
+
+        # Add title
+        styles = getSampleStyleSheet()
+        title = Paragraph("<b>ABC Tune Database Export</b>", styles['Title'])
+        elements.append(title)
+        elements.append(Spacer(1, 0.2 * inch))
+
+        # Add summary info
+        summary = Paragraph(f"<b> Total Tunes:</b> {len(df)}", styles['Normal'])
+        elements.append(summary)
+        elements.append(Spacer(1, 0.2 * inch))
+
+        # Select columns to display
+        display_columns = ['id', 'book_number', 'title', 'type', 'key_signature', 'meter']
+        df_display = df[display_columns].head(100) # limiting to first 100 for pdf
+
+        # converting lists to lists for table
+        data = [display_columns] + df_display.values.tolist()
+
+        # Create table
+        table = Table(data)
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        
+        elements.append(table)
+        
+        # Build PDF
+        pdf.build(elements)
+
+        print(f"PDF exported successfully: {filename}")
+        return True
+    
+    except ImportError:
+        print("reportlab not installed. install with: pip install reportlab")
+        return False
+    except Exception as e:
+        print(f"Error exporting PDF: {e}")
+        return False
+    
 # Test the analysis functions
 if __name__ == "__main__":
     print("Testing Analysis Functions")
